@@ -22,7 +22,6 @@ const EInvalidAttributeKeyLength: u64 = 2;
 // without revealing the image. For example, if you're using Walrus for image storage,
 // you can use the Walrus CLI to pre-calculate blob IDs to use as image URIs.
 // The actual image can be uploaded at a later time.
-#[allow(implicit_const_copy)]
 public fun new(
     name: String,
     number: u64,
