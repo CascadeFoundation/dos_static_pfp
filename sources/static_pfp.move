@@ -1,6 +1,8 @@
 module dos_static_pfp::static_pfp;
 
 use std::string::String;
+use sui::hash::blake2b256;
+use sui::hex;
 use sui::vec_map::{Self, VecMap};
 
 public struct StaticPfp has store {
@@ -8,13 +10,23 @@ public struct StaticPfp has store {
     name: String,
     description: String,
     external_url: String,
-    image_uri: String,
-    attributes: VecMap<String, String>,
+    reveal_state: RevealState,
 }
 
-const EAttributesAlreadyRevealed: u64 = 0;
-const EAttributesLengthMismatch: u64 = 1;
-const EInvalidAttributeKeyLength: u64 = 2;
+public enum RevealState has copy, drop, store {
+    UNREVEALED {
+        provenance_hash: String,
+    },
+    REVEALED {
+        attributes: VecMap<String, String>,
+        image_uri: String,
+    },
+}
+
+const EAttributesLengthMismatch: u64 = 0;
+const EIncorrectProvenanceHash: u64 = 1;
+const EPfpAlreadyRevealed: u64 = 2;
+const EPfpNotRevealed: u64 = 3;
 
 // Create a new static PFP.
 //
@@ -27,15 +39,14 @@ public fun new(
     number: u64,
     description: String,
     external_url: String,
-    image_uri: String,
+    provenance_hash: String,
 ): StaticPfp {
     StaticPfp {
         number: number,
         name: name,
         description: description,
         external_url: external_url,
-        image_uri: image_uri,
-        attributes: vec_map::empty(),
+        reveal_state: RevealState::UNREVEALED { provenance_hash: provenance_hash },
     }
 }
 
@@ -47,16 +58,34 @@ public fun destroy(self: StaticPfp) {
 
 public fun reveal(
     self: &mut StaticPfp,
-    attribute_keys: vector<String>,
-    attribute_values: vector<String>,
+    attr_keys: vector<String>,
+    attr_values: vector<String>,
+    image_uri: String,
 ) {
-    assert!(self.attributes.is_empty(), EAttributesAlreadyRevealed);
-    assert!(attribute_keys.length() == attribute_values.length(), EAttributesLengthMismatch);
+    match (self.reveal_state) {
+        RevealState::UNREVEALED { provenance_hash } => {
+            // Verify the attribute keys and values vectors are the same size.
+            assert!(attr_keys.length() == attr_values.length(), EAttributesLengthMismatch);
 
-    // Assert none of the attribute keys are blank.
-    attribute_keys.do!(|v| assert!(v.length() > 0, EInvalidAttributeKeyLength));
+            // Calculate the provenance hash onchain with the PFP's number,
+            // and the provided attributes and image URI.
+            let calculated_provenance_hash = calculate_provenance_hash(
+                self.number,
+                attr_keys,
+                attr_values,
+                image_uri,
+            );
+            assert!(calculated_provenance_hash == provenance_hash, EIncorrectProvenanceHash);
 
-    self.attributes = vec_map::from_keys_values(attribute_keys, attribute_values);
+            // Set the PFP's state to REVEALED.
+            self.reveal_state =
+                RevealState::REVEALED {
+                    attributes: vec_map::from_keys_values(attr_keys, attr_values),
+                    image_uri: image_uri,
+                }
+        },
+        RevealState::REVEALED { .. } => abort EPfpAlreadyRevealed,
+    }
 }
 
 public fun name(self: &StaticPfp): String {
@@ -71,10 +100,80 @@ public fun description(self: &StaticPfp): String {
     self.description
 }
 
-public fun image_uri(self: &StaticPfp): String {
-    self.image_uri
+public fun external_url(self: &StaticPfp): String {
+    self.external_url
 }
 
 public fun attributes(self: &StaticPfp): VecMap<String, String> {
-    self.attributes
+    match (self.reveal_state) {
+        RevealState::REVEALED { attributes, .. } => attributes,
+        _ => abort EPfpNotRevealed,
+    }
+}
+
+public fun image_uri(self: &StaticPfp): String {
+    match (self.reveal_state) {
+        RevealState::REVEALED { image_uri, .. } => image_uri,
+        _ => abort EPfpNotRevealed,
+    }
+}
+
+//=== Package Functions ===
+
+public(package) fun calculate_provenance_hash(
+    number: u64,
+    attribute_keys: vector<String>,
+    attribute_values: vector<String>,
+    image_uri: String,
+): String {
+    // Initialize input string for hashing.
+    let mut input = b"".to_string();
+    input.append(number.to_string());
+
+    // Concatenate the attribute keys and values.
+    attribute_keys.do!(|v| input.append(v));
+    attribute_values.do!(|v| input.append(v));
+
+    // Concatenate the image URI.
+    input.append(image_uri);
+
+    // Calculate the hash, and return hex string representation.
+    hex::encode(blake2b256(input.as_bytes())).to_string()
+}
+
+#[test]
+fun test_calculate_provenance_hash() {
+    let number = 100;
+    let attribute_keys: vector<String> = vector[
+        b"aura".to_string(),
+        b"background".to_string(),
+        b"clothing".to_string(),
+        b"decal".to_string(),
+        b"headwear".to_string(),
+        b"highlight".to_string(),
+        b"internals".to_string(),
+        b"mask".to_string(),
+        b"screen".to_string(),
+        b"skin".to_string(),
+    ];
+    let attribute_values: vector<String> = vector[
+        b"none".to_string(),
+        b"green".to_string(),
+        b"none".to_string(),
+        b"none".to_string(),
+        b"classic-antenna".to_string(),
+        b"green".to_string(),
+        b"gray".to_string(),
+        b"hyottoko".to_string(),
+        b"tamashi-eyes".to_string(),
+        b"silver".to_string(),
+    ];
+    let image_uri = b"MvcX8hU5esyvO1M8NRCrleSQjS9YaH57YBedKIUpYn8".to_string();
+    let provenance_hash = calculate_provenance_hash(
+        number,
+        attribute_keys,
+        attribute_values,
+        image_uri,
+    );
+    std::debug::print(&provenance_hash);
 }
