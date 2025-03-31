@@ -1,0 +1,10 @@
+[package]
+name = "DosStaticPfp"
+edition = "2024.beta"
+license = "Cascade DOL"
+authors = ["Cascade Foundation (dev@cascade.foundation)"]
+
+[dependencies]
+
+[addresses]
+dos_static_pfp = "0x0"
