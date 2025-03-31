@@ -27,7 +27,6 @@ const EAttributesLengthMismatch: u64 = 0;
 const EIncorrectProvenanceHash: u64 = 1;
 const EPfpAlreadyRevealed: u64 = 2;
 const EPfpNotRevealed: u64 = 3;
-const EInvalidPublisher: u64 = 4;
 
 // Create a new static PFP.
 //
