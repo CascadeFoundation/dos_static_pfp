@@ -3,14 +3,13 @@ module dos_static_pfp::static_pfp;
 use std::string::String;
 use sui::hash::blake2b256;
 use sui::hex;
-use sui::url::{Self, Url};
 use sui::vec_map::{Self, VecMap};
 
 public struct StaticPfp has store {
     number: u64,
     name: String,
     description: String,
-    external_url: Url,
+    external_url: String,
     reveal_state: RevealState,
 }
 
@@ -39,14 +38,14 @@ public fun new(
     name: String,
     number: u64,
     description: String,
-    external_url_bytes: vector<u8>,
+    external_url: String,
     provenance_hash: String,
 ): StaticPfp {
     StaticPfp {
         number: number,
         name: name,
         description: description,
-        external_url: url::new_unsafe_from_bytes(external_url_bytes),
+        external_url: external_url,
         reveal_state: RevealState::UNREVEALED { provenance_hash: provenance_hash },
     }
 }
@@ -103,7 +102,7 @@ public fun description(self: &StaticPfp): String {
     self.description
 }
 
-public fun external_url(self: &StaticPfp): Url {
+public fun external_url(self: &StaticPfp): String {
     self.external_url
 }
 
