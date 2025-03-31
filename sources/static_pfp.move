@@ -3,10 +3,9 @@ module dos_static_pfp::static_pfp;
 use std::string::String;
 use sui::hash::blake2b256;
 use sui::hex;
-use sui::package::Publisher;
 use sui::vec_map::{Self, VecMap};
 
-public struct StaticPfp<phantom T> has store {
+public struct StaticPfp has store {
     number: u64,
     name: String,
     description: String,
@@ -36,16 +35,13 @@ const EInvalidPublisher: u64 = 4;
 // without revealing the image. For example, if you're using Walrus for image storage,
 // you can use the Walrus CLI to pre-calculate blob IDs to use as image URIs.
 // The actual image can be uploaded at a later time.
-public fun new<T>(
-    publisher: &Publisher,
+public fun new(
     name: String,
     number: u64,
     description: String,
     external_url: String,
     provenance_hash: String,
-): StaticPfp<T> {
-    assert!(publisher.from_module<T>() == true, EInvalidPublisher);
-
+): StaticPfp {
     StaticPfp {
         number: number,
         name: name,
@@ -55,14 +51,14 @@ public fun new<T>(
     }
 }
 
-public fun destroy<T>(self: StaticPfp<T>) {
+public fun destroy(self: StaticPfp) {
     let StaticPfp {
         ..,
     } = self;
 }
 
-public fun reveal<T>(
-    self: &mut StaticPfp<T>,
+public fun reveal(
+    self: &mut StaticPfp,
     attribute_keys: vector<String>,
     attribute_values: vector<String>,
     image_uri: String,
@@ -95,37 +91,37 @@ public fun reveal<T>(
     }
 }
 
-public fun name<T>(self: &StaticPfp<T>): String {
+public fun name(self: &StaticPfp): String {
     self.name
 }
 
-public fun number<T>(self: &StaticPfp<T>): u64 {
+public fun number(self: &StaticPfp): u64 {
     self.number
 }
 
-public fun description<T>(self: &StaticPfp<T>): String {
+public fun description(self: &StaticPfp): String {
     self.description
 }
 
-public fun external_url<T>(self: &StaticPfp<T>): String {
+public fun external_url(self: &StaticPfp): String {
     self.external_url
 }
 
-public fun attributes<T>(self: &StaticPfp<T>): VecMap<String, String> {
+public fun attributes(self: &StaticPfp): VecMap<String, String> {
     match (self.reveal_state) {
         RevealState::REVEALED { attributes, .. } => attributes,
         _ => abort EPfpNotRevealed,
     }
 }
 
-public fun image_uri<T>(self: &StaticPfp<T>): String {
+public fun image_uri(self: &StaticPfp): String {
     match (self.reveal_state) {
         RevealState::REVEALED { image_uri, .. } => image_uri,
         _ => abort EPfpNotRevealed,
     }
 }
 
-public fun provenance_hash<T>(self: &StaticPfp<T>): String {
+public fun provenance_hash(self: &StaticPfp): String {
     match (self.reveal_state) {
         RevealState::UNREVEALED { provenance_hash } => provenance_hash,
         _ => abort EPfpAlreadyRevealed,
